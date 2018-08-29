@@ -129,23 +129,43 @@ import numpy as np
 #     copy(cwd + 'images/' + test_xmls[i].rstrip('.xml') + '.jpg',
 #          cwd + 'split/test_images/' + test_xmls[i].rstrip('.xml') + '.jpg')
 
-ANN = 'D:/DeepLearning/data/WoodBlockNewPick/labels/'
+ANN = '/home/hsq/DeepLearning/data/split/train_xmls/'
 picks = ['live knot', 'die knot', 'small', 'head shed']  # 'edge shed',
 rate = 0.8
-dumps = pascal_voc_clean_xml(ANN, picks, exclusive=False)
+chunks = pascal_voc_clean_xml(ANN, picks, exclusive=False)
 np.random.seed(0)
-np.random.shuffle(dumps)
-n = len(dumps)
+np.random.shuffle(chunks)
+# n = len(chunks)
 
-train_file = open(ANN.rstrip('labels/') + 'train_data.txt', 'w')
-test_file = open(ANN.rstrip('labels/') + 'test_data.txt', 'w')
+# train_file = open(ANN.rstrip('labels/') + 'train_data.txt', 'w')
+# test_file = open(ANN.rstrip('labels/') + 'test_data.txt', 'w')
 
-for dump in dumps[0:int(0.8 * n)]:
-    train_file.write(ANN + dump[0].rstrip('jpg') + 'xml' + '\n')
-for dump in dumps[int(0.8 * n):]:
-    test_file.write(ANN + dump[0].rstrip('jpg') + 'xml' + '\n')
-train_file.close()
-test_file.close()
+# ['744.jpg', [2048, 1536, [{'ymin': 838, 'xmax': 1396, 'ymax': 1061, 'name': 'die knot', 'xmin': 397}]]]
+class_num = [list(), list(), list(), list()]
+for chunk in chunks:
+    for i in range(len(chunk[1][2])):
+        if chunk[1][2][i]['name'] in picks:
+            class_num[picks.index(chunk[1][2][i]['name'])].append(chunk[0])
+
+train_list = class_num[0][0:int(0.8 * len(class_num[0]))]
+for i in range(len(picks)-1):
+    train_list = train_list + class_num[i+1][0:int(0.8 * len(class_num[i+1]))]
+    train_list = list(set(train_list))
+
+test_list = class_num[0][int(0.8 * len(class_num[0])):]
+for i in range(len(picks)-1):
+    test_list = test_list + class_num[i+1][int(0.8 * len(class_num[i+1])):]
+    test_list = list(set(test_list))
+
+test = train_list + test_list
+test = list(set(test))
+exit()
+# for dump in chunks[0:int(0.8 * n)]:
+#     train_file.write(ANN + dump[0].rstrip('jpg') + 'xml' + '\n')
+# for dump in chunks[int(0.8 * n):]:
+#     test_file.write(ANN + dump[0].rstrip('jpg') + 'xml' + '\n')
+# train_file.close()
+# test_file.close()
 
 # dumps = change_label(dumps, 'live knot', 'knot')
 # dumps = change_label(dumps, 'die knot', 'knot')
