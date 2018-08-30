@@ -2,14 +2,15 @@ from sklearn.model_selection import train_test_split
 import os
 import xml.etree.ElementTree as ET
 import sys
+from tqdm import tqdm
 
 
 # <class 'list'>: ['2007_000027.jpg', [486, 500, [['person', 174, 101, 349, 351]]]]
-def pascal_voc_clean_xml(ANN, pick, exclusive=False):
-    print('Parsing for {} {}'.format(
-        pick, 'exclusively' * int(exclusive)))
+def read_xml(ANN, pick):
+    print('Parsing for {}'.format(pick))
 
-    dumps = list()
+    chunks = list()
+    no_use = list()
     cur_dir = os.getcwd()
     os.chdir(ANN)
     annotations = os.listdir('.')
@@ -28,15 +29,7 @@ def pascal_voc_clean_xml(ANN, pick, exclusive=False):
     #         annotations.append(temp)
     # size = len(annotations)
 
-    for i, file in enumerate(annotations):
-        # progress bar
-        sys.stdout.write('\r')
-        percentage = 1. * (i + 1) / size
-        progress = int(percentage * 20)
-        bar_arg = [progress * '=', ' ' * (19 - progress), percentage * 100]
-        bar_arg += [file]
-        sys.stdout.write('[{}>{}]{:.0f}%  {}'.format(*bar_arg))
-        sys.stdout.flush()
+    for file in tqdm(annotations):
 
         # actual parsing
         in_file = open(file)
@@ -70,12 +63,14 @@ def pascal_voc_clean_xml(ANN, pick, exclusive=False):
 
         add = [[jpg, [w, h, all]]]
         if len(all) is not 0:  # skip the image which not include any 'pick'
-            dumps += add
+            chunks += add
+        else:
+            no_use.append(add[0][0])
         in_file.close()
 
     # gather all stats
     stat = dict()
-    for dump in dumps:
+    for dump in chunks:
         all = dump[1][2]
         for current in all:
             if current['name'] in pick:
@@ -86,10 +81,10 @@ def pascal_voc_clean_xml(ANN, pick, exclusive=False):
 
     print('\nStatistics:')
     for i in stat: print('{}: {}'.format(i, stat[i]))
-    print('Dataset size: {}'.format(len(dumps)))
+    print('Dataset size: {}'.format(len(chunks)))
 
     os.chdir(cur_dir)
-    return dumps
+    return chunks, no_use
 
 
 def change_label(dumps, src, dst):
@@ -100,81 +95,52 @@ def change_label(dumps, src, dst):
 
     return dumps
 
-
+# 按照比率分出训练集和测试集，并且保证每个box都按照比率出现在训练集和测试集合上
 from shutil import copy
 import numpy as np
 
-# cwd = 'D:/DeepLearning/data/WoodBlockNewPick/'
-# # ANN = 'D:/DeepLearning/data/WoodBlockNewPick/labels/'
-# xmls = os.listdir(cwd + 'labels')
-#
-# # if os.path.isdir(ANN) is False:
-# #     os.mkdir(ANN + 'split')
-# np.random.shuffle(xmls)
-# n = len(xmls)
-# rate = 0.8
-# train_xmls = xmls[0:int(rate * n)]
-# test_xmls = xmls[int(rate * n):]
-#
-# for i in range(len(xmls)):
-#     if (xmls[i] not in train_xmls) and (xmls[i] not in test_xmls):
-#         copy(cwd + 'images/' + xmls[i].rstrip('.xml') + '.jpg',
-#              cwd + 'split/leftover/' + xmls[i].rstrip('.xml') + '.jpg')
-# for i in range(len(train_xmls)):
-#     copy(cwd + 'labels/' + train_xmls[i], cwd + 'split/train_xmls/' + train_xmls[i])
-#     copy(cwd + 'images/' + train_xmls[i].rstrip('.xml') + '.jpg',
-#          cwd + 'split/train_images/' + train_xmls[i].rstrip('.xml') + '.jpg')
-# for i in range(len(test_xmls)):
-#     copy(cwd + 'labels/' + test_xmls[i], cwd + 'split/test_xmls/' + test_xmls[i])
-#     copy(cwd + 'images/' + test_xmls[i].rstrip('.xml') + '.jpg',
-#          cwd + 'split/test_images/' + test_xmls[i].rstrip('.xml') + '.jpg')
-
-ANN = '/home/hsq/DeepLearning/data/split/train_xmls/'
-picks = ['live knot', 'die knot', 'small', 'head shed']  # 'edge shed',
+ANN = 'D:/DeepLearning/data/WoodBlockNewPick/split/train_xmls/'
+picks = ['live knot', 'die knot', 'small', 'head shed', 'edge shed']  # ,
 rate = 0.8
-chunks = pascal_voc_clean_xml(ANN, picks, exclusive=False)
-np.random.seed(0)
+chunks, no_use_list = read_xml(ANN, picks)
+# np.random.seed(0)
 np.random.shuffle(chunks)
-# n = len(chunks)
 
-# train_file = open(ANN.rstrip('labels/') + 'train_data.txt', 'w')
-# test_file = open(ANN.rstrip('labels/') + 'test_data.txt', 'w')
-
-# ['744.jpg', [2048, 1536, [{'ymin': 838, 'xmax': 1396, 'ymax': 1061, 'name': 'die knot', 'xmin': 397}]]]
-class_num = [list(), list(), list(), list()]
+os.chdir(ANN)
+os.chdir('..')
+train_file = open('train_data.txt', 'w')
+test_file = open('test_data.txt', 'w')
+no_use_file = open('no_use_data.txt', 'w')
+# chunks ['744.jpg', [2048, 1536, [{'ymin': 838, 'xmax': 1396, 'ymax': 1061, 'name': 'die knot', 'xmin': 397}]]]
+# 把每个box的jpg文件名，按照box的类别分别存到所属的列表里
+split_jpg = [list(), list(), list(), list(), list()]
+# no_use_jpg = []
 for chunk in chunks:
     for i in range(len(chunk[1][2])):
         if chunk[1][2][i]['name'] in picks:
-            class_num[picks.index(chunk[1][2][i]['name'])].append(chunk[0])
+            split_jpg[picks.index(chunk[1][2][i]['name'])].append(chunk[0])
 
-train_list = class_num[0][0:int(0.8 * len(class_num[0]))]
-for i in range(len(picks)-1):
-    train_list = train_list + class_num[i+1][0:int(0.8 * len(class_num[i+1]))]
+train_list = split_jpg[0][0:int(rate * len(split_jpg[0]))]
+for i in range(len(picks) - 1):
+    train_list = train_list + split_jpg[i + 1][0:int(rate * len(split_jpg[i + 1]))]
     train_list = list(set(train_list))
 
-test_list = class_num[0][int(0.8 * len(class_num[0])):]
-for i in range(len(picks)-1):
-    test_list = test_list + class_num[i+1][int(0.8 * len(class_num[i+1])):]
+test_list = split_jpg[0][int(rate * len(split_jpg[0])):]
+for i in range(len(picks) - 1):
+    test_list = test_list + split_jpg[i + 1][int(rate * len(split_jpg[i + 1])):]
     test_list = list(set(test_list))
 
-test = train_list + test_list
-test = list(set(test))
-exit()
-# for dump in chunks[0:int(0.8 * n)]:
-#     train_file.write(ANN + dump[0].rstrip('jpg') + 'xml' + '\n')
-# for dump in chunks[int(0.8 * n):]:
-#     test_file.write(ANN + dump[0].rstrip('jpg') + 'xml' + '\n')
-# train_file.close()
-# test_file.close()
+intersection = list(set(train_list).intersection(set(test_list)))
+for i in intersection:
+    train_list.remove(i)
 
-# dumps = change_label(dumps, 'live knot', 'knot')
-# dumps = change_label(dumps, 'die knot', 'knot')
-
-# ['2007_000027.jpg', [486, 500, [['person', 174, 101, 349, 351]]]]
-# image_path = dumps[:]
-# x_train, x_valid, y_train, y_valid = train_test_split(ful_image_path, ful_labels,
-#                                                               test_size=(valid_proportion + test_proportion),
-#                                                                stratify=ful_labels, random_state=1)
-
-
+for i in train_list:
+    train_file.write(ANN + i.rstrip('jpg') + 'xml' + '\n')
+for i in test_list:
+    test_file.write(ANN + i.rstrip('jpg') + 'xml' + '\n')
+for i in no_use_list:
+    no_use_file.write(ANN + i.rstrip('jpg') + 'xml' + '\n')
+train_file.close()
+test_file.close()
+no_use_file.close()
 exit()
