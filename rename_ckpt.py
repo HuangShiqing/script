@@ -83,7 +83,8 @@ def rename(dict, oldckpt_dir, newckpt_path, add_prefix=''):
             var = tf.Variable(var, name=new_name)
 
         # Save the variables
-        saver = load_model(oldckpt_dir)
+        # saver = load_model(oldckpt_dir)
+        saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         saver.save(sess, newckpt_path)
 
@@ -104,7 +105,32 @@ if __name__ == '__main__':
 
     # old_name:new_name
     dict = {'conv1_1/kernel': 'conv_11/kernel',
-            'conv1_1/bias': 'conv_11/bias'}
+            'conv1_1/bias': 'conv_11/bias',
+            'conv1_2/kernel': 'conv_12/kernel',
+            'conv1_2/bias': 'conv_12/bias',
+            'conv2_1/kernel': 'conv_21/kernel',
+            'conv2_1/bias': 'conv_21/bias',
+            'conv2_2/kernel': 'conv_22/kernel',
+            'conv2_2/bias': 'conv_22/bias',
+            'conv3_1/kernel': 'conv_31/kernel',
+            'conv3_1/bias': 'conv_31/bias',
+            'conv3_2/kernel': 'conv_32/kernel',
+            'conv3_2/bias': 'conv_32/bias',
+            'conv3_3/kernel': 'conv_33/kernel',
+            'conv3_3/bias': 'conv_33/bias',
+            'conv4_1/kernel': 'conv_41/kernel',
+            'conv4_1/bias': 'conv_41/bias',
+            'conv4_2/kernel': 'conv_42/kernel',
+            'conv4_2/bias': 'conv_42/bias',
+            'conv4_3/kernel': 'conv_43/kernel',
+            'conv4_3/bias': 'conv_43/bias',
+            'conv5_1/kernel': 'conv_51/kernel',
+            'conv5_1/bias': 'conv_51/bias',
+            'conv5_2/kernel': 'conv_52/kernel',
+            'conv5_2/bias': 'conv_52/bias',
+            'conv5_3/kernel': 'conv_53/kernel',
+            'conv5_3/bias': 'conv_53/bias',
+            }
     oldckpt_dir = './ckpt/'
     newckpt_path = './new'
     rename(dict, oldckpt_dir, newckpt_path)
